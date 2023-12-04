@@ -5,9 +5,14 @@
 </head>
 <body>
     <div id="app">
-        <input type="text" id="testInput" autofocus>
+        <input type="text" id="testInput">
     </div>
     <script>
-
+        setTimeout(function() {
+            console.info("click triggered");
+            console.info(document.getElementById("testInput"));
+            document.getElementById("testInput").focus();
+        }, 3000);
+        
     </script>
 </body>
