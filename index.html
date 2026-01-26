@@ -1,5 +1,152 @@
-<!doctype html><head><meta name="viewport" content="initial-scale=1,width=device-width"/><title>Web Demo</title><script defer="defer" src="./client.js"></script></head><body><div id="app"></div><script>window._data_preload = {
+<!doctype html>
+<head>
+    <meta name="viewport" content="initial-scale=1,width=device-width"/>
+    <title>Web Demo</title>
+    <link rel="manifest" href="./manifest.json">
+    <meta name="theme-color" content="#000000">
+    <script defer="defer" src="./client.js"></script>
+    <style>
+        .install-button {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 25px;
+            font-size: 16px;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(0, 123, 255, 0.3);
+            transition: all 0.3s ease;
+            display: none;
+        }
+        .install-button:hover {
+            background: #0056b3;
+            transform: translateY(-2px);
+        }
+        .install-button.show {
+            display: block;
+            animation: slideIn 0.3s ease;
+        }
+        @keyframes slideIn {
+            from {
+                transform: translateY(100px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="app"></div>
+    <button id="installButton" class="install-button">📱 Install App</button>
+    
+    <script>window._data_preload = {
         config: {
             apiServer: 'https://103.99.178.129'
         }
-    };</script></body>
+    };</script>
+    
+    <script>
+        // PWA Install functionality
+        let deferredPrompt;
+        const installButton = document.getElementById('installButton');
+
+        // Check if app is already installed
+        function isAppInstalled() {
+            // Check if running in standalone mode (installed PWA)
+            if (window.matchMedia('(display-mode: standalone)').matches) {
+                return true;
+            }
+            // Check for iOS standalone mode
+            if (window.navigator.standalone === true) {
+                return true;
+            }
+            // Check if launched from home screen on Android
+            if (document.referrer.startsWith('android-app://')) {
+                return true;
+            }
+            return false;
+        }
+
+        // Hide install button if app is already installed
+        if (isAppInstalled()) {
+            installButton.style.display = 'none';
+            console.log('PWA is already installed');
+        }
+
+        // Check for getInstalledRelatedApps support (experimental)
+        if ('getInstalledRelatedApps' in navigator) {
+            navigator.getInstalledRelatedApps().then((relatedApps) => {
+                if (relatedApps.length > 0) {
+                    installButton.style.display = 'none';
+                    console.log('PWA is already installed (detected via getInstalledRelatedApps)');
+                }
+            }).catch((error) => {
+                console.log('getInstalledRelatedApps failed:', error);
+            });
+        }
+
+        // Register service worker
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', function() {
+                navigator.serviceWorker.register('./service-worker.js')
+                    .then(function(registration) {
+                        console.log('ServiceWorker registration successful with scope: ', registration.scope);
+                    })
+                    .catch(function(err) {
+                        console.log('ServiceWorker registration failed: ', err);
+                    });
+            });
+        }
+
+        // Listen for the beforeinstallprompt event
+        window.addEventListener('beforeinstallprompt', (e) => {
+            // Don't show install button if app is already installed
+            if (isAppInstalled()) {
+                return;
+            }
+            
+            // Prevent the mini-infobar from appearing on mobile
+            e.preventDefault();
+            // Save the event so it can be triggered later
+            deferredPrompt = e;
+            // Show the install button
+            installButton.classList.add('show');
+        });
+
+        // Handle install button click
+        installButton.addEventListener('click', async () => {
+            if (deferredPrompt) {
+                // Show the prompt
+                deferredPrompt.prompt();
+                // Wait for the user to respond to the prompt
+                const { outcome } = await deferredPrompt.userChoice;
+                console.log(`User response to the install prompt: ${outcome}`);
+                // Clear the deferredPrompt variable
+                deferredPrompt = null;
+                // Hide the install button
+                installButton.classList.remove('show');
+            }
+        });
+
+        // Listen for app installed event
+        window.addEventListener('appinstalled', (evt) => {
+            console.log('PWA was installed');
+            installButton.classList.remove('show');
+            installButton.style.display = 'none';
+        });
+
+        // Listen for display mode changes
+        window.matchMedia('(display-mode: standalone)').addEventListener('change', (evt) => {
+            if (evt.matches) {
+                console.log('App is now running in standalone mode');
+                installButton.style.display = 'none';
+            }
+        });
+    </script>
+</body>
